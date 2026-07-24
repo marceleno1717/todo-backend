@@ -1,7 +1,7 @@
-FROM oven/bun
+FROM oven/bun:alpine
 
-RUN apt-get update
-RUN apt-get install curl iputils-ping -y
+RUN apk update
+RUN apk add --no-cache curl iputils-ping
 
 WORKDIR /app
 
