@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { deleteUploadedFiles } from '../config/upload';
-import { createTodo, deleteTodo, getAllTodos, updateTodo } from '../models/todoModel';
+import { createTodo, deleteTodo, getTodosPage, updateTodo } from '../models/todoModel';
 
 type TodoParams = {
   id: string;
@@ -11,9 +11,30 @@ type TodoBody = {
   completed?: boolean;
 };
 
-export async function listTodos(_request: Request, response: Response, next: NextFunction): Promise<void> {
+type ListTodosQuery = {
+  page?: string;
+  limit?: string;
+};
+
+function getPositiveInteger(value: string | undefined, fallback: number, maximum: number): number {
+  const parsedValue = Number(value);
+
+  if (!Number.isInteger(parsedValue) || parsedValue < 1) {
+    return fallback;
+  }
+
+  return Math.min(parsedValue, maximum);
+}
+
+export async function listTodos(
+  request: Request<Record<string, never>, unknown, unknown, ListTodosQuery>,
+  response: Response,
+  next: NextFunction
+): Promise<void> {
   try {
-    const todos = await getAllTodos();
+    const page = getPositiveInteger(request.query.page, 1, Number.MAX_SAFE_INTEGER);
+    const limit = getPositiveInteger(request.query.limit, 10, 100);
+    const todos = await getTodosPage(page, limit);
     response.json(todos);
   } catch (error) {
     next(error);
@@ -86,4 +107,3 @@ export async function removeTodo(
     next(error);
   }
 }
-

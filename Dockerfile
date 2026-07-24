@@ -1,5 +1,8 @@
 FROM oven/bun
 
+RUN apt-get update
+RUN apt-get install curl iputils-ping -y
+
 WORKDIR /app
 
 COPY package*.json bun*.lock ./

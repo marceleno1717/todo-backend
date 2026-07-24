@@ -19,6 +19,15 @@ export type Todo = {
   files: TodoFile[];
 };
 
+export type TodoPage = {
+  todos: Todo[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  remainingCount: number;
+};
+
 type TodoRow = RowDataPacket & {
   id: number;
   title: string;
@@ -33,6 +42,11 @@ type TodoFileRow = RowDataPacket & {
   storedName: string;
   mimeType: string;
   size: number;
+};
+
+type TodoCountRow = RowDataPacket & {
+  total: number;
+  remainingCount: number;
 };
 
 export async function ensureTodosTable(): Promise<void> {
@@ -111,14 +125,31 @@ async function getTodoById(id: number): Promise<Todo | null> {
   return todosWithFiles[0] || null;
 }
 
-export async function getAllTodos(): Promise<Todo[]> {
+export async function getTodosPage(page: number, pageSize: number): Promise<TodoPage> {
+  const [count] = await query<TodoCountRow[]>(
+    `SELECT COUNT(*) AS total,
+            COALESCE(SUM(completed = FALSE), 0) AS remainingCount
+     FROM todos`
+  );
+  const total = Number(count.total);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const offset = (currentPage - 1) * pageSize;
   const todos = await query<TodoRow[]>(
     `SELECT id, title, completed, created_at AS createdAt
      FROM todos
-     ORDER BY id DESC`
+     ORDER BY id DESC
+     LIMIT ${pageSize} OFFSET ${offset}`
   );
 
-  return attachFiles(todos);
+  return {
+    todos: await attachFiles(todos),
+    page: currentPage,
+    pageSize,
+    total,
+    totalPages,
+    remainingCount: Number(count.remainingCount)
+  };
 }
 
 export async function createTodo(title: string, files: Express.Multer.File[] = []): Promise<Todo | null> {
@@ -161,4 +192,3 @@ export async function deleteTodo(id: number): Promise<{ deleted: boolean; files:
     files
   };
 }
-
